@@ -36,6 +36,8 @@ jobs:
           if git diff --cached --quiet; then
             echo "변경 사항 없음"
           else
-            git commit -m "data: $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M') 갱신"
+            # [skip ci] 를 붙이는 이유: Vercel이 이 저장소에 연결돼 있으면
+            # 10분마다 재배포가 돌아 배포 한도를 갉아먹습니다. 이 표시가 있으면 건너뜁니다.
+            git commit -m "data: $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M') 갱신 [skip ci]"
             git push
           fi

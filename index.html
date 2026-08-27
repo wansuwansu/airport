@@ -158,11 +158,13 @@
    * MODE "proxy"  : worker.js를 Cloudflare에 올리고 그 주소를 PROXY_URL에 넣습니다.
    *                 키가 안 보이고 CORS도 해결되며 캐시로 트래픽도 아낍니다. 공개 배포는 이걸로.
    */
-  var MODE      = "static";              // GitHub Pages 방식
-  var DATA_URL  = "./data/latest.json";  // Actions가 10분마다 갱신하는 파일
-  var PROXY_URL = "";                    // Cloudflare Worker를 쓸 거면 MODE를 "proxy"로 바꾸고 주소를 넣으세요
+  // "auto" : /api/congestion (Vercel 서버 함수) 를 먼저 쓰고, 없으면 data/latest.json 으로 넘어감
+  // "proxy": /api/congestion 만 사용   |   "static": data/latest.json 만 사용
+  var MODE      = "auto";
+  var PROXY_URL = "/api/congestion";
+  var DATA_URL  = "./data/latest.json";
 
-  var POLL_MS = 60000;        // 파일만 다시 읽는 거라 API 한도와 무관합니다
+  var POLL_MS = 90000;        // 90초. 일일 한도 1000건 때문에 더 짧게 하지 마세요
   var STEPS   = [10, 20, 30]; // 여유 / 보통 / 혼잡 경계 (분)
   /* ═══════════════════════════════════════════════ */
 
@@ -191,58 +193,59 @@
     return m ? new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]) : null;
   }
 
+  var useFallback = (MODE === "static");   // auto 모드에서 서버 함수가 실패하면 true로 바뀐다
+
   function buildUrl(){
-    if(MODE === "static"){
-      return DATA_URL + "?v=" + Date.now();   // 캐시 우회
-    }
-    if(MODE === "proxy"){
-      if(!PROXY_URL) return null;
-      return PROXY_URL.replace(/\/+$/,"");
-    }
-    return null;
+    if(useFallback) return DATA_URL + "?v=" + Date.now();
+    return PROXY_URL.replace(/\/+$/,"") + "?v=" + Date.now();
+  }
+
+  function sourceLabel(){
+    return useFallback ? "저장된 파일" : "실시간";
   }
 
   function load(){
-    var url = buildUrl();
-    if(!url){
-      showError("PROXY_URL이 비어 있습니다.", "worker.js를 배포한 뒤 그 주소를 넣어주세요.");
-      return;
-    }
-    fetch(url, { cache:"no-store" })
-      .then(function(r){ return r.text(); })
-      .then(function(text){
+    fetch(buildUrl(), { cache:"no-store" })
+      .then(function(r){
+        return r.text().then(function(text){ return { status:r.status, text:text }; });
+      })
+      .then(function(r){
         var json;
-        try { json = JSON.parse(text); }
+        try { json = JSON.parse(r.text); }
         catch(e){
-          showError("응답이 JSON이 아닙니다.", "대개 인증키 문제입니다.", text.slice(0,300));
-          return;
+          // 404 HTML 페이지 같은 게 오면 여기로 온다
+          return fail("응답이 JSON이 아닙니다.",
+            useFallback
+              ? "data/latest.json 이 배포에 포함되지 않은 것 같습니다."
+              : "/api/congestion 이 배포되지 않았거나 경로가 다릅니다.",
+            r.text.slice(0,300));
         }
-        // proxy 모드는 {ok, data:{...}} 로 감싸서 옵니다
-        var body = json.data ? json.data : json;
         if(json.ok === false){
-          showError("API 오류", json.message || json.error || "", json.rawHead);
-          return;
+          // 서버 함수가 정상 동작하며 원인을 알려준 경우 → 폴백하지 않고 그대로 보여준다
+          return showError("API 오류", (json.message || json.error || "") + (json.hint ? " " + json.hint : ""), json.rawHead);
         }
+        var body = json.data ? json.data : json;
         var head = body.response && body.response.header;
         if(head && head.resultCode !== "00"){
-          showError("API 오류", (head.resultMsg||"") + " (코드 " + head.resultCode + ")");
-          return;
+          return showError("API 오류", (head.resultMsg||"") + " (코드 " + head.resultCode + ")");
         }
         var items = body.response && body.response.body && body.response.body.items;
-        if(!items){ showError("항목을 찾지 못했습니다.", text.slice(0,300)); return; }
+        if(!items) return fail("항목을 찾지 못했습니다.", "", r.text.slice(0,300));
         if(!Array.isArray(items)) items = items.item ? (Array.isArray(items.item)?items.item:[items.item]) : [];
         ingest(items);
       })
-      .catch(function(e){
-        if(MODE === "static"){
-          showError("데이터 파일을 못 읽었습니다.",
-            "GitHub Actions가 아직 한 번도 안 돌았을 수 있습니다. " +
-            "저장소 Actions 탭에서 '출국장 혼잡도 갱신'을 눌러 수동 실행해보세요.", String(e));
-        } else {
-          showError("프록시에 연결하지 못했습니다.",
-            "PROXY_URL 주소가 맞는지 확인하세요.", String(e));
-        }
-      });
+      .catch(function(e){ fail("연결하지 못했습니다.", "", String(e)); });
+  }
+
+  // auto 모드면 서버 함수 실패 시 저장된 파일로 한 번 넘어가 본다
+  function fail(title, msg, raw){
+    if(MODE === "auto" && !useFallback){
+      useFallback = true;
+      console.warn("서버 함수 실패 → data/latest.json 으로 전환:", title, raw);
+      load();
+      return;
+    }
+    showError(title, msg, raw);
   }
 
   function ingest(items){
@@ -377,7 +380,8 @@
 
   function stamp(){
     var d = lastStamp || lastAt; if(!d) return;
-    $("stamp").textContent = pad(d.getHours())+":"+pad(d.getMinutes())+" 기준 · "+(TERMINALS[term]||term);
+    $("stamp").textContent = pad(d.getHours())+":"+pad(d.getMinutes())+" 기준 · "
+      + (TERMINALS[term]||term) + " · " + sourceLabel();
   }
   function tickAgo(){
     if(!lastAt) return;
