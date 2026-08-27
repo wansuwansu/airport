@@ -1,0 +1,25 @@
+{
+ "fetchedAt": "2026-08-27T15:50:00+09:00",
+ "response": {
+  "header": { "resultCode": "00", "resultMsg": "NORMAL SERVICE." },
+  "body": {
+   "numOfRows": 100,
+   "pageNo": 1,
+   "totalCount": 12,
+   "items": [
+    { "gateId": "DG1_E", "terminalId": "P01", "waitTime": "6",  "waitLength": "0",  "occurtime": "20260827155000", "operatingTime": "" },
+    { "gateId": "DG1_W", "terminalId": "P01", "waitTime": "6",  "waitLength": "0",  "occurtime": "20260827155000", "operatingTime": "" },
+    { "gateId": "DG2_E", "terminalId": "P01", "waitTime": "11", "waitLength": "62", "occurtime": "20260827155000", "operatingTime": "06:00~19:00" },
+    { "gateId": "DG2_W", "terminalId": "P01", "waitTime": "7",  "waitLength": "48", "occurtime": "20260827155000", "operatingTime": "06:00~19:00" },
+    { "gateId": "DG3_E", "terminalId": "P01", "waitTime": "17", "waitLength": "57", "occurtime": "20260827155000", "operatingTime": "00:00~24:00" },
+    { "gateId": "DG3_W", "terminalId": "P01", "waitTime": "16", "waitLength": "52", "occurtime": "20260827155000", "operatingTime": "00:00~24:00" },
+    { "gateId": "DG4_E", "terminalId": "P01", "waitTime": "10", "waitLength": "50", "occurtime": "20260827155000", "operatingTime": "06:30~20:00" },
+    { "gateId": "DG4_W", "terminalId": "P01", "waitTime": "13", "waitLength": "77", "occurtime": "20260827155000", "operatingTime": "06:30~20:00" },
+    { "gateId": "DG5_E", "terminalId": "P01", "waitTime": "4",  "waitLength": "14", "occurtime": "20260827155000", "operatingTime": "05:00~22:00" },
+    { "gateId": "DG5_W", "terminalId": "P01", "waitTime": "8",  "waitLength": "17", "occurtime": "20260827155000", "operatingTime": "05:00~22:00" },
+    { "gateId": "DG6_E", "terminalId": "P01", "waitTime": "6",  "waitLength": "0",  "occurtime": "20260827155000", "operatingTime": "" },
+    { "gateId": "DG6_W", "terminalId": "P01", "waitTime": "6",  "waitLength": "0",  "occurtime": "20260827155000", "operatingTime": "" }
+   ]
+  }
+ }
+}
